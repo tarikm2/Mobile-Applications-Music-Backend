@@ -1,36 +1,51 @@
 var express = require("express");
+//orm for our mongoose database
 var mongoose = require('mongoose');
+//middlewear to expose req.body on routes
 var bodyParser = require("body-parser");
-var jade = require("jade");
+//mozilla module for handling client sessions
+var sessions = require("client-sessions");
+//encription module for hashing and salting passwords
 var bcrypt = require("bcryptjs");
+//our app
 var app = express();
-
-
-//set the view engine
-app.set('view engine', 'jade');
-
 
 /*
   MIDDLEWARE
 */
+
+//middlewear for retrieving the body information from req
+//app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({extended: true}));
+
+//add middlewear for handling user sessions
+app.use(sessions({
+    cookieName: "session",
+    secret: 'alkdsjhvprjshadalkajslhfkjvcnlakerjgblkajdfhliure',
+    duration: 30 * 60 * 1000,             //this session duration is 30min
+    activeDuration: 5 * 60 * 1000,        //if expiresIn < activeDuration, session extended this much
+}));
+
+//TODO: custom middleware for handling session data
 
 /*
   DATABASE:
   the database currently links a user to a list of songs, which contains sorcing information
   for retriving the song.
 */
-var Schema = mongoose.Schema;
+var Schema = mongoose.Schema;      //for defining schemas
+var ObjectId = Schema.ObjectId;
 
-//set up the orm for the database
-var userSchema = Schema({
-    id: Schema.ObjectId,
+var userSchema = Schema({          //set up the orms for the database
+    id: ObjectId,
     firstName: String,
     lastName: String,
-    userName: {type: String, unique: true },
+    userName: String,
     email: { type: String, unique: true },
     password: String,
     songs: [{ type: Schema.Types.ObjectId, ref: 'Song' }],
 });
+
 
 var songSchema = Schema({
     _owner : { type: Number, ref: "User"},
@@ -40,51 +55,88 @@ var songSchema = Schema({
     souceObject: {},
 });
 
-var Song = mongoose.model('Song', songSchema);
+var Song = mongoose.model("Song", songSchema); 
 var User = mongoose.model("User", userSchema);
 
-mongoose.connect("mongodb://localhost/mobileApp");
-//END DATABASE CONFIG
+mongoose.connect("mongodb://localhost/mobileApp");  //connect to our local database
 
-//middlewear for retrieving the body information from req
-app.use(bodyParser.urlencoded({ extended: true }));
+/*
+  ROUTES
+*/
 
-app.get("/", (req, res) => {
-    res.render("index.jade");
-});
-
-app.get("/register", (req, res) => {
-    res.render("register.jade");
-});
-
+//route for registering a user. see user schema for what should be passed.
 app.post("/register", (req, res) => {
+    //hash and salt our passwords like good people 
     var pHash = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10));
     var user = new User({
 	firstName: req.body.firstName,
-	lastName: req.body.lastName,
+	lastnName: req.body.lastName,
 	userName: req.body.userName,
 	email: req.body.email,
 	password: pHash,
     });
 
+    console.log(req.body);
+   
+    //try to save user to database. if there is duplicate or error, respond with error
     user.save((err) => {
 	if(err) {
-	    var error = "Somthing went wrong I dont know why.";
+	    var someError = "Somthing went wrong I dont know why.";
 	    if(err.code === 11000) {
-		error = "Email or Username already taken, choose another.";
+		someError = "Email or Username already taken, choose another.";
 		//TODO error handling for either email or username conflict
 	    }
-	    res.render('register.jade', {error: error});
+	    res.json({error: someError});
 	} else {
-	   // res.redirect("/dashboard");
+	    console.log("creation succsessful going to return json");
 	    res.json(user);
 	}
     });   
 });
 
-app.get("/dashboard", (req, res) => {
-    
+app.post("/login", (req, res) => {
+    User.findOne({ email: req.body.email}, (err, user) => {
+	//if no user is found for this requrest, respond with error
+	if(!user) {
+	    res.json({error: "Error: no user found with this email"});
+	} else {
+	    console.log(user);
+	    //if the password matches our users password...
+	    if(bcrypt.compareSync(req.body.password, user.password)) {
+		//set the sessions user appropriately
+		req.session.user = user;
+		res.json({status: "Success", email: user.email});
+	    } else {
+		res.json({error: "incorrect email or password"});
+	    }
+	    
+	}
+    });
 });
 
-app.listen("3000");
+
+app.get('/logout', (req, res) => {
+    req.session.reset();
+    res.json({message: "you have logged out"});
+});
+
+/*
+app.get('/userinfo', (req, res) => {
+    if (req.session)
+});
+*/
+/*
+  Make this app live by binding it to a port
+*/
+var server = app.listen("3000", function () {
+    var port = server.address().port;
+    console.log("Backend listening on port %s", port);
+});
+
+//export the server variable to our module, so that when somthing else 
+//wants to use server, all it needs to do is var app = require("app.js"); app.xxx...
+module.exports = server;
+
+
+
 

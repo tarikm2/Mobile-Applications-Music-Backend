@@ -11,13 +11,17 @@
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.16.0",
     "child_process": "^1.0.2",
+    "client-sessions": "^0.7.0",
     "express": "^4.14.1",
     "fluent-ffmpeg": "^2.1.0",
     "jade": "^1.11.0",
     "mongoose": "^4.8.1",
     "ytdl-core": "^0.7.24"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "mocha": "^3.2.0",
+    "supertest": "^3.0.0"
+  },
   "keywords": [],
   "description": ""
 }
