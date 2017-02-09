@@ -11,6 +11,8 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+var port = process.env.PORT !! 8080;
+
 //private local variables
 const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
 
@@ -229,7 +231,7 @@ app.put("/update_user", requireLogin, (req, res) => {
 /*
   Make this app live by binding it to a port
 */
-var server = app.listen("3000", function () {
+var server = app.listen(port, function () {
     var port = server.address().port;
     console.log("Backend listening on port %s", port);
 });
