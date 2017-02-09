@@ -1,3 +1,4 @@
+var path = require('path');
 var express = require("express");
 //orm for our mongoose database
 var mongoose = require('mongoose');
@@ -10,12 +11,14 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+//private local variables
+const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
+
 /*
   MIDDLEWARE
 */
 
 //middlewear for retrieving the body information from req
-//app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({extended: true}));
 
 //add middlewear for handling user sessions
@@ -58,7 +61,11 @@ var songSchema = Schema({
 var Song = mongoose.model("Song", songSchema); 
 var User = mongoose.model("User", userSchema);
 
-mongoose.connect("mongodb://localhost/mobileApp");  //connect to our local database
+console.log(CREDENTIALS.DB.USER + " " + CREDENTIALS.DB.PSWD);
+mongoose.connect("mongodb://"        //connect to our local database
+		 + CREDENTIALS.DB.USER 
+		 + ":" + CREDENTIALS.DB.PSWD 
+		 + "@ds147079.mlab.com:47079/ca-fi_music");
 
 /*
   ROUTES
