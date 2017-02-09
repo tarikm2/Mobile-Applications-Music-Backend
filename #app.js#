@@ -11,9 +11,6 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
-var port = process.env.PORT || 8080;
-
-
 //private local variables
 const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
 
@@ -32,7 +29,6 @@ app.use(sessions({
     activeDuration: 5 * 60 * 1000,        //if expiresIn < activeDuration, session extended this much
 }));
 
-
 //Custom middleware for handling session data
 app.use((req, res, next) => {
     //if there is a user in the current session from this request
@@ -45,14 +41,14 @@ app.use((req, res, next) => {
 		//this is to keep route code neat by updating the incoming requests user
 		//object with the session info.
 		//set the user of this request to the sessions user
-		req.user = user;
+
 		
 		//security: remove uneccesary sensitive information
-		 req.user.password = undefined;
+		delete req.user.password;
 		console.log(req.user);
 		//security: reset the session user to the user clear of sesitive info
-		req.session.user = user;
-		res.locals.user = user;     		//QUESTION: what are locals, really?
+//		res.session.user = user;
+//		res.locals.user = user;     		//QUESTION: what are locals, really?
 	    }
 	    next();    //call the next process
 	});
@@ -110,6 +106,7 @@ var songSchema = Schema({
 var Song = mongoose.model("Song", songSchema); 
 var User = mongoose.model("User", userSchema);
 
+console.log(CREDENTIALS.DB.USER + " " + CREDENTIALS.DB.PSWD);
 mongoose.connect("mongodb://"        //connect to our local database
 		 + CREDENTIALS.DB.USER 
 		 + ":" + CREDENTIALS.DB.PSWD 
@@ -125,7 +122,7 @@ app.post("/register", requireLogout, (req, res) => {
     var pHash = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10));
     var user = new User({
 	firstName: req.body.firstName,
-	lastName: req.body.lastName,
+	lastnName: req.body.lastName,
 	userName: req.body.userName,
 	email: req.body.email,
 	password: pHash,
@@ -158,8 +155,7 @@ app.post("/login", requireLogout, (req, res) => {
 	} else {
 	    console.log(user);
 	    //if the password matches our users password...
-	    if(req.body.password 
-	       && bcrypt.compareSync(req.body.password, user.password)) {
+	    if(bcrypt.compareSync(req.body.password, user.password)) {
 		//set the sessions user appropriately
 		req.session.user = user;
 		res.json({status: "Success", email: user.email});
@@ -192,15 +188,23 @@ app.get('/user_info', requireLogin, (req, res) => {
     res.send(req.user);
 });
 
-//TODO: set up an authenticated way to update critical info such as email, paswd
-app.put("/update_user", requireLogin, (req, res) => {
 
-    var invalidEditFields = ["password", "email", "songs", "__v", "_id"];
+/*
+  Make this app live by binding it to a port
+*/
+var server = app.listen("3000", function () {
+    var port = server.address().port;
+    console.log("Backend listening on port %s", port);
+});
 
-    User.findOne({email: req.user.email}, (err, user) => {
-	if(err) req.send({error: "error, bad request, no such user logged in"});
-	
-	for(var v in req.body) {
+//export the server variable to our module, so that when somthing else 
+//wants to use server, all it needs to do is var app = require("app.js"); app.xxx...
+module.exports = server;
+
+
+
+
+ in req.body) {
 	    if(user[v] 
 	       && req.body[v] != user[v]) {
 
@@ -232,7 +236,9 @@ app.put("/update_user", requireLogin, (req, res) => {
 /*
   Make this app live by binding it to a port
 */
-var server = app.listen(port, function () {
+var server = app.listen
+, function () {
+    var port = server.address().port;
     console.log("Backend listening on port %s", port);
 });
 
