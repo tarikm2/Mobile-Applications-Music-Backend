@@ -237,13 +237,22 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
+//most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
-   
-    ytdl(url, {filter: (f) => {
+    
+    var stream = ytdl(url, {filter: (f) => {
 	return f.container === 'mp4' && !f.encoding;
-    }})
-    .pipe(res);
+    }}).on('error', (err) => {
+	console.log("ERROR: " + err);
+	console.log(url);
+	res.send({error: "Error: unable to stream that youtube source. " + err)
+    });
+
+    res.set({'Content-Type': 'audio/mpeg'});
+    
+    stream.pipe(res);
+    
 });
 
 /*
