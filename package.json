@@ -22,10 +22,8 @@
     "client-sessions": "^0.7.0",
     "express": "^4.14.1",
     "fluent-ffmpeg": "^2.1.0",
-    "jade": "^1.11.0",
     "mongoose": "^4.8.1",
     "ytdl-core": "^0.7.24",
-    "ejs": "~1.0.0"
   },
   "devDependencies": {
     "mocha": "^3.2.0",
