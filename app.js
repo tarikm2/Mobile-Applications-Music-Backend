@@ -246,7 +246,7 @@ app.post("/stream_yt", (req, res) => {
     }}).on('error', (err) => {
 	console.log("ERROR: " + err);
 	console.log(url);
-	res.send({error: "Error: unable to stream that youtube source. " + err)
+	res.send({error: "Error: unable to stream that youtube source. " + err});
     });
 
     res.set({'Content-Type': 'audio/mpeg'});
