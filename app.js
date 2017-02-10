@@ -236,7 +236,7 @@ app.put("/update_user", requireLogin, (req, res) => {
 /*
   Make this app live by binding it to a port
 */
-var server = app.listen(app.get('port'), function () {
+app.listen(app.get('port'), function () {
     console.log("Backend listening on port %s", app.get('port'));
 });
 
