@@ -3,7 +3,7 @@ credentials.json
 
 # All these damn emacs backups
 *~
-
+*#
 # Logs
 logs
 *.log

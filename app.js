@@ -11,7 +11,7 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
-var port = process.env.PORT || 8080;
+app.set('port', (process.env.PORT || 5000));
 
 
 //private local variables
@@ -119,6 +119,10 @@ mongoose.connect("mongodb://"        //connect to our local database
   ROUTES
 */
 
+
+app.get('/', (req, res) => {
+    res.send({message: "root, nothing is here"});
+});
 //route for registering a user. see user schema for what should be passed.
 app.post("/register", requireLogout, (req, res) => {
     //hash and salt our passwords like good people 
@@ -205,7 +209,7 @@ app.put("/update_user", requireLogin, (req, res) => {
 	       && req.body[v] != user[v]) {
 
 		if(invalidEditFields.includes(v)) {
-		    res.send({Error: "Cannot edit field " + v + ". protected"});
+		    res.send({error: "Cannot edit field " + v + ". protected"});
 		    return;
 		}
 
@@ -232,15 +236,7 @@ app.put("/update_user", requireLogin, (req, res) => {
 /*
   Make this app live by binding it to a port
 */
-var server = app.listen(port, function () {
-    console.log("Backend listening on port %s", port);
+var server = app.listen(app.get('port'), function () {
+    console.log("Backend listening on port %s", app.get('port'));
 });
-
-//export the server variable to our module, so that when somthing else 
-//wants to use server, all it needs to do is var app = require("app.js"); app.xxx...
-module.exports = server;
-
-
-
-
 
