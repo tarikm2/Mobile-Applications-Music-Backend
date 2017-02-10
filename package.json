@@ -23,7 +23,7 @@
     "express": "^4.14.1",
     "fluent-ffmpeg": "^2.1.0",
     "mongoose": "^4.8.1",
-    "ytdl-core": "^0.7.24",
+    "ytdl-core": "^0.7.24"
   },
   "devDependencies": {
     "mocha": "^3.2.0",
