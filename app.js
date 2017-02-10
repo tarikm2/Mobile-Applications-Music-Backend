@@ -11,6 +11,11 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+
+//dependencies for streaming youtube audio
+var ytdl = require('ytdl-core');
+var ffmpeg = require('fluent-ffmpeg');
+
 app.set('port', (process.env.PORT || 5000));
 
 
@@ -232,6 +237,14 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
+app.post("/stream_yt", (req, res) => {
+    var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
+   
+    ytdl(url, {filter: (f) => {
+	return f.container === 'mp4' && !f.encoding;
+    }})
+    .pipe(res);
+});
 
 /*
   Make this app live by binding it to a port
