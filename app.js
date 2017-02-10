@@ -11,6 +11,11 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+
+//dependencies for streaming youtube audio
+var ytdl = require('ytdl-core');
+var ffmpeg = require('fluent-ffmpeg');
+
 app.set('port', (process.env.PORT || 5000));
 
 
@@ -232,6 +237,23 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
+//most simple audio streaming for node
+app.post("/stream_yt", (req, res) => {
+    var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
+    
+    var stream = ytdl(url, {filter: (f) => {
+	return f.container === 'mp4' && !f.encoding;
+    }}).on('error', (err) => {
+	console.log("ERROR: " + err);
+	console.log(url);
+	res.send({error: "Error: unable to stream that youtube source. " + err)
+    });
+
+    res.set({'Content-Type': 'audio/mpeg'});
+    
+    stream.pipe(res);
+    
+});
 
 /*
   Make this app live by binding it to a port
