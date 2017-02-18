@@ -240,27 +240,12 @@ app.put("/update_user", requireLogin, (req, res) => {
 });
 
 //most simple audio streaming for node
+
 app.post("/stream_yt", (req, res) => {
-    var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
-        
-    var stream = ytdl(url, {filter: 'audioonly' /*(format) => {
-	return format.container === 'mp4' && !format.encoding;
-    }*/}).on('error', (err) => {
-	console.log("ERROR: " + err);
-	console.log(url);
-	res.send({error: "Error: unable to stream that youtube source. " + err})
-    });
-
-    res.set({'Content-Type': 'audio/mpeg'});
-    
-    stream.pipe(res);
-    
-});
-
-app.post("/stream_yt_two", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
     
 //    var testFile = fs.createWriteStream("audioTest.mp3");
+    
     res.set({'Content-Type' : 'audio/mpeg'});
         
     var stream = ytdl(url);
