@@ -11,6 +11,8 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+//testing dependencies
+//var fs = require("fs");
 
 //dependencies for streaming youtube audio
 var ytdl = require('ytdl-core');
@@ -240,10 +242,10 @@ app.put("/update_user", requireLogin, (req, res) => {
 //most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
-    
-    var stream = ytdl(url, {filter: (f) => {
-	return f.container === 'mp4' && !f.encoding;
-    }}).on('error', (err) => {
+        
+    var stream = ytdl(url, {filter: 'audioonly' /*(format) => {
+	return format.container === 'mp4' && !format.encoding;
+    }*/}).on('error', (err) => {
 	console.log("ERROR: " + err);
 	console.log(url);
 	res.send({error: "Error: unable to stream that youtube source. " + err})
@@ -253,6 +255,28 @@ app.post("/stream_yt", (req, res) => {
     
     stream.pipe(res);
     
+});
+
+app.post("/stream_yt_two", (req, res) => {
+    var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
+    
+//    var testFile = fs.createWriteStream("audioTest.mp3");
+    res.set({'Content-Type' : 'audio/mpeg'});
+        
+    var stream = ytdl(url);
+    var proc = new ffmpeg({source: stream})
+	.on("stderr", (stderr) => {
+	    console.log("stderr: " + stderr);
+	})
+	.on('error', (err, stdout, stderr) => {
+	    console.log("error : " + err.message);
+	})
+	.on("end", (stdout, stderr) => {
+	    console.log('stream encoding and send successfull');
+	})
+        .toFormat('mp3')
+	.writeToStream(res, {end:true});
+  
 });
 
 /*
