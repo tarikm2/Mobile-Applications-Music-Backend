@@ -11,6 +11,10 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+//youtube api
+const youtube = require("youtube-api");
+
+
 //testing dependencies
 //var fs = require("fs");
 
@@ -23,6 +27,18 @@ app.set('port', (process.env.PORT || 5000));
 
 //private local variables
 const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
+console.log(CREDENTIALS);
+
+let auth = youtube.authenticate({
+    type: "key",
+    key: CREDENTIALS.YOUTUBE.KEY,
+});
+
+mongoose.connect("mongodb://"        //connect to our local database
+		 + CREDENTIALS.DB.USER 
+		 + ":" + CREDENTIALS.DB.PSWD 
+		 + "@ds147079.mlab.com:47079/ca-fi_music");
+
 
 /*
   MIDDLEWARE
@@ -117,10 +133,6 @@ var songSchema = Schema({
 var Song = mongoose.model("Song", songSchema); 
 var User = mongoose.model("User", userSchema);
 
-mongoose.connect("mongodb://"        //connect to our local database
-		 + CREDENTIALS.DB.USER 
-		 + ":" + CREDENTIALS.DB.PSWD 
-		 + "@ds147079.mlab.com:47079/ca-fi_music");
 
 /*
   ROUTES
@@ -237,6 +249,26 @@ app.put("/update_user", requireLogin, (req, res) => {
 	    res.send(updated);
 	});
     });
+});
+
+//youtube search
+app.post("/search", (req, res) => {
+    console.log("in the search section");
+    var found = youtube.search.list({
+	part: "snippet",
+	q: req.body.query,
+        topicId: "Music",
+        maxResults: 5,
+        })
+    .on("complete", (data) => {
+	console.log("Done fetching results");
+	res.send(data.body.items);
+    })
+    .on("error", (err) => {
+	console.log(err);
+	res.send({error: err});
+    });
+
 });
 
 //most simple audio streaming for node
