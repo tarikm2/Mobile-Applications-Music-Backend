@@ -11,6 +11,8 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
+var discogs = require("disconnect").Client;
+var dis = new Discogs("Cat-Fi-Music-App/1.0");
 //youtube api
 const youtube = require("youtube-api");
 
@@ -271,6 +273,9 @@ app.post("/search", (req, res) => {
 
 });
 
+//discogs search
+
+
 //most simple audio streaming for node
 
 app.post("/stream_yt", (req, res) => {
@@ -295,6 +300,7 @@ app.post("/stream_yt", (req, res) => {
 	.writeToStream(res, {end:true});
   
 });
+
 
 /*
   Make this app live by binding it to a port
