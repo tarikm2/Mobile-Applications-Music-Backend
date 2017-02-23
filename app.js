@@ -1,4 +1,8 @@
 var path = require('path');
+
+//private local variables
+const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
+
 var express = require("express");
 //orm for our mongoose database
 var mongoose = require('mongoose');
@@ -11,14 +15,18 @@ var bcrypt = require("bcryptjs");
 //our app
 var app = express();
 
-var discogs = require("disconnect").Client;
-var dis = new Discogs("Cat-Fi-Music-App/1.0");
+const discogs = require("disconnect")
+    .Client(null,
+	    {
+		consumerKey: CREDENTIALS.DISCOGS.CONSUMERKEY,
+		consumerSecret: CREDENTIALS.DISCOGS.CONSUMERSECRET
+	    });
+
+const discogsDb = discogs.database();
+
 //youtube api
 const youtube = require("youtube-api");
 
-
-//testing dependencies
-//var fs = require("fs");
 
 //dependencies for streaming youtube audio
 var ytdl = require('ytdl-core');
@@ -26,9 +34,6 @@ var ffmpeg = require('fluent-ffmpeg');
 
 app.set('port', (process.env.PORT || 5000));
 
-
-//private local variables
-const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
 console.log(CREDENTIALS);
 
 let auth = youtube.authenticate({
@@ -274,7 +279,11 @@ app.post("/search", (req, res) => {
 });
 
 //discogs search
-
+app.post("/discogs_search", (req, res) => {
+    discogsDb.search("The Echolarks", (err, data) => {
+	console.log(data);
+    });
+});
 
 //most simple audio streaming for node
 
