@@ -55,7 +55,7 @@ app.use((req, res, next) => {
 		req.user = user;
 		
 		//security: remove uneccesary sensitive information
-		 req.user.password = undefined;
+		req.user.password = undefined;
 		console.log(req.user);
 		//security: reset the session user to the user clear of sesitive info
 		req.session.user = user;
@@ -92,6 +92,7 @@ function requireLogout(req, res, next) {
   the database currently links a user to a list of songs, which contains sorcing information
   for retriving the song.
 */
+
 var Schema = mongoose.Schema;      //for defining schemas
 var ObjectId = Schema.ObjectId;
 
@@ -102,16 +103,22 @@ var userSchema = Schema({          //set up the orms for the database
     userName: String,
     email: { type: String, unique: true },
     password: String,
-    songs: [{ type: Schema.Types.ObjectId, ref: 'Song' }],
+    songs: [{
+	title: String,
+	imgurl: String,
+	dateCreated: {type: Date, default: Date.now},
+	sourceObject: {
+	    id: String,
+	    src: String,
+	}
+    }],
 });
 
-
 var songSchema = Schema({
-    _owner : { type: Number, ref: "User"},
+    _id: ObjectId,
     title: String,
-    sourceId: String,
     dateCreated: { type: Date, default: Date.now },
-    souceObject: {},
+    souceObject: {id: String, src: String},
 });
 
 var Song = mongoose.model("Song", songSchema); 
@@ -133,7 +140,7 @@ app.get('/', (req, res) => {
 //route for registering a user. see user schema for what should be passed.
 app.post("/register", requireLogout, (req, res) => {
     //hash and salt our passwords like good people 
-    var pHash = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10));
+    var pHash = bcrnypt.hashSync(req.body.password, bcrypt.genSaltSync(10));
     var user = new User({
 	firstName: req.body.firstName,
 	lastName: req.body.lastName,
@@ -239,8 +246,48 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
-//most simple audio streaming for node
+app.post("/addToLibrary", requireLogin, (req, res) => {
 
+    var song = {
+	title: req.body.title,
+	dateCreated: Date.now(),
+	imgurl: String,
+	sourceObject: {
+	    id: req.body.srcId,
+	    src: req.body.src
+	}
+    }
+    var songFound = false;
+    User.findOne({email: req.user.email}, (err, doc) => {
+
+	var songs = doc.songs;
+
+	songs.forEach((userSong) => {
+	   if(song.sourceObject.id === userSong.sourceObject.id 
+	    & song.sourceObject.src === userSong.sourceObject.src) {
+	       songFound = true;
+	       console.log("songFound = " + songFound);
+	   }
+	});
+	if(!songFound){
+	    User.update(
+		{email: req.user.email},
+		{$push: {songs: song}},
+		{safe: true, upsert: true},
+		(err, user) => {
+		    if(err) {
+			res.send(err);
+		    } else {
+			res.send(song);
+		    }
+		});
+	} else {
+	    res.send({error: "source already exsists in user library"})
+	}
+    });
+});
+
+//most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
     
@@ -267,7 +314,7 @@ app.post("/stream_yt", (req, res) => {
 /*
   Make this app live by binding it to a port
 */
-app.listen(app.get('port'), function () {
+app.listen(app.get('port'), () => {
     console.log("Backend listening on port %s", app.get('port'));
 });
 
