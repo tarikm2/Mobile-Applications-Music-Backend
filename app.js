@@ -19,7 +19,6 @@ var ffmpeg = require('fluent-ffmpeg');
 
 app.set('port', (process.env.PORT || 5000));
 
-
 //private local variables
 const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
 
@@ -358,6 +357,22 @@ app.post("/createPlaylist", requireLogin, (req, res) => {
     });
 });
 
+app.get("/userLibrary", requireLogin, (req, res) => {
+    User.findOne({
+	_id: req.user._id,
+    })
+	.populate('songs')
+	.exec((err, user) => {
+	    if(err) {
+		res.send({ error: err });
+		return;
+	    }
+	    console.log(user);
+	    res.send(user.songs);
+	    return;
+	})
+});
+
 //add a song to the users library
 app.post("/addToLibrary", requireLogin, (req, res) => {
 
@@ -410,9 +425,7 @@ app.post("/addToLibrary", requireLogin, (req, res) => {
 			   });
 		       },
 		       (e) => {
-					
-	
-	    //if the song isn't already in the users database
+			   //if the song isn't already in the users database
 			   if(!songFound){
 			       User.update(
 				   {email: req.user.email}, 
