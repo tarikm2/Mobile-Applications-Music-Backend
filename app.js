@@ -8,11 +8,10 @@ var bodyParser = require("body-parser");
 var sessions = require("client-sessions");
 //encription module for hashing and salting passwords
 var bcrypt = require("bcryptjs");
+var async = require("async");
+
 //our app
 var app = express();
-
-//testing dependencies
-//var fs = require("fs");
 
 //dependencies for streaming youtube audio
 var ytdl = require('ytdl-core');
@@ -53,7 +52,7 @@ app.use((req, res, next) => {
 		//object with the session info.
 		//set the user of this request to the sessions user
 		req.user = user;
-		
+
 		//security: remove uneccesary sensitive information
 		req.user.password = undefined;
 		console.log(req.user);
@@ -96,6 +95,34 @@ function requireLogout(req, res, next) {
 var Schema = mongoose.Schema;      //for defining schemas
 var ObjectId = Schema.ObjectId;
 
+var songSchema = Schema({
+    title: String,
+    imgurl: String,
+    dateCreated: { type: Date, default: Date.now() },
+    src: String, 
+    id: {
+	type: String,
+	enum: ['YouTube']
+    }
+
+});
+var Song = mongoose.model("Song", songSchema); 
+
+var playlistSchema = Schema({
+    _id: ObjectId,
+    user: {
+	type: mongoose.Schema.Types.ObjectId,
+	ref: "User"
+    },
+    songs: [{
+	songId: {
+	    type: mongoose.Schema.Types.ObjectId,
+	    ref: 'Song'
+	}
+    }]
+});
+var Playlist = mongoose.model("Playlist", playlistSchema);
+
 var userSchema = Schema({          //set up the orms for the database
     id: ObjectId,
     firstName: String,
@@ -103,26 +130,19 @@ var userSchema = Schema({          //set up the orms for the database
     userName: String,
     email: { type: String, unique: true },
     password: String,
-    songs: [{
-	title: String,
-	imgurl: String,
-	dateCreated: {type: Date, default: Date.now},
-	sourceObject: {
-	    id: String,
-	    src: String,
+    playlists: [{
+	playListId: {
+	    type: mongoose.Schema.Types.ObjectId,
+	    ref: 'Playlist' 
 	}
     }],
+    songs: [{
+	type: mongoose.Schema.Types.ObjectId,
+	ref: 'Song'
+    }],
 });
-
-var songSchema = Schema({
-    _id: ObjectId,
-    title: String,
-    dateCreated: { type: Date, default: Date.now },
-    souceObject: {id: String, src: String},
-});
-
-var Song = mongoose.model("Song", songSchema); 
 var User = mongoose.model("User", userSchema);
+
 
 mongoose.connect("mongodb://"        //connect to our local database
 		 + CREDENTIALS.DB.USER 
@@ -140,7 +160,7 @@ app.get('/', (req, res) => {
 //route for registering a user. see user schema for what should be passed.
 app.post("/register", requireLogout, (req, res) => {
     //hash and salt our passwords like good people 
-    var pHash = bcrnypt.hashSync(req.body.password, bcrypt.genSaltSync(10));
+    var pHash = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10));
     var user = new User({
 	firstName: req.body.firstName,
 	lastName: req.body.lastName,
@@ -213,7 +233,7 @@ app.get('/user_info', requireLogin, (req, res) => {
 //TODO: set up an authenticated way to update critical info such as email, paswd
 app.put("/update_user", requireLogin, (req, res) => {
 
-    var invalidEditFields = ["password", "email", "songs", "__v", "_id"];
+    var invalidEditFields = ["password", "email", "songs", "playlists", "__v", "_id"];
 
     User.findOne({email: req.user.email}, (err, user) => {
 	if(err) req.send({error: "error, bad request, no such user logged in"});
@@ -248,50 +268,83 @@ app.put("/update_user", requireLogin, (req, res) => {
 
 app.post("/addToLibrary", requireLogin, (req, res) => {
 
-    var song = {
-	title: req.body.title,
-	dateCreated: Date.now(),
-	imgurl: String,
-	sourceObject: {
-	    id: req.body.srcId,
-	    src: req.body.src
-	}
-    }
+    var songToInsert;
     var songFound = false;
-    User.findOne({email: req.user.email}, (err, doc) => {
 
-	var songs = doc.songs;
-
-	songs.forEach((userSong) => {
-	   if(song.sourceObject.id === userSong.sourceObject.id 
-	    & song.sourceObject.src === userSong.sourceObject.src) {
-	       songFound = true;
-	       console.log("songFound = " + songFound);
-	   }
-	});
-	if(!songFound){
-	    User.update(
-		{email: req.user.email},
-		{$push: {songs: song}},
-		{safe: true, upsert: true},
-		(err, user) => {
-		    if(err) {
-			res.send(err);
-		    } else {
-			res.send(song);
-		    }
-		});
-	} else {
-	    res.send({error: "source already exsists in user library"})
+	
+    Song.findOne({
+	src: req.body.src,
+	id: req.body.srcId
+    }, (err, song) => {
+	if(song) {   //if the song src already exisits in song collection get it
+	    songToInsert = song;
+	} else if(err){
+	    console.log(err);
+	} else {      //if this is a newly sourced song add it to the db
+	    songToInsert = new Song({
+		title: req.body.title,
+		imgurl: req.body.imgurl,
+		src: req.body.src,
+		id: req.body.srcId
+	    });
+	    songToInsert.save((err) => {
+		if(err) {
+		    console.log(err); return;
+		} else {
+		    console.log("new song saved to collection");
+		}    
+	    });
+	    console.log("songToInsert: \n" + songToInsert);
 	}
-    });
+	
+	//we have establised a song now handle adding to library
+	//look into efficencies of populate vs findOne() for expanding user songs
+	User.findOne({email: req.user.email}, (err, doc) => {
+	
+	    //use a map here instead of a list for doc.songs to speed search?
+	    async.each(doc.songs,
+		       (songToPopulate, callback) => {
+			   Song.findOne({_id: songToPopulate}, (err, userSong) => {
+			       console.log("the user song Id : " + userSong);
+
+			       if(songToInsert.id === userSong.id
+				  & songToInsert.src === userSong.src) {
+				   songFound = true;
+				   console.log("song already in library");
+			       }
+			       callback();
+			   });
+		       },
+		       (e) => {
+					
+	
+	    //if the song isn't already in the users database
+			   if(!songFound){
+			       User.update(
+				   {email: req.user.email}, 
+				   { $push: { songs: songToInsert._id } },
+				   {safe: true, upsert: true},
+				   (err, user) => {
+				       if(err) {
+					   res.send(err);
+					   return;
+				       } else {
+					   res.send(song);
+					   return;
+				       }
+				   });
+			   } else {
+			       res.send({error: "source already exsists in user library"})
+			       return;
+			   }
+		       });
+	});
+    });	     
 });
 
 //most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
-    
-//    var testFile = fs.createWriteStream("audioTest.mp3");
     
     res.set({'Content-Type' : 'audio/mpeg'});
         
@@ -304,7 +357,7 @@ app.post("/stream_yt", (req, res) => {
 	    console.log("error : " + err.message);
 	})
 	.on("end", (stdout, stderr) => {
-	    console.log('stream encoding and send successfull');
+	    console.log('stream encoded and send successfull');
 	})
         .toFormat('mp3')
 	.writeToStream(res, {end:true});
