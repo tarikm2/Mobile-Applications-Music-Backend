@@ -321,6 +321,21 @@ app.post("/addSongToPlaylist", requireLogin, (req, res) => {
     });
 });
 
+app.get("/userPlaylists", requireLogin, (req, res) => {
+    User.findOne({
+	_id: req.user._id,
+    })
+	.populate("playlists")
+	.exec((err, user) => {
+	    if(err) {
+		res.send({ error: err });
+		return;
+	    } else {
+		res.json(user.playlists);
+	    }
+	});
+});
+
 //allow the user to create a playlist
 app.post("/createPlaylist", requireLogin, (req, res) => {
     
