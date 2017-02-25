@@ -116,6 +116,8 @@ var playlistSchema = Schema({
     },
     songs: [{
 	type: mongoose.Schema.Types.ObjectId,
+	unique: true,
+	dropDups: true,
 	ref: 'Song'
     }]
 });
@@ -263,6 +265,62 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
+//allow the user to add a song to their playlist
+app.post("/addSongToPlaylist", requireLogin, (req, res) => {
+    
+    Playlist.findOne({
+	userId: req.user._id,
+	name: req.body.playlistName
+    }, (err, playlist) => {
+	//we have found the requested playlist
+	//make sure the song sent matches a song in user library
+	if(err) {
+	    res.send({ error: err });
+	    return;
+	}
+
+	User.findOne({
+	    _id: req.user
+	}, (uErr, user) => {
+	    if(uErr) {
+		res.send({ error: uErr });
+		return;
+	    }
+	    //if this song is in the users library
+	    //and verify that playlist belongs to user
+	    //and verify the song isnt already in the playlist
+	    console.log(user.songs);
+	    if(user.songs.indexOf(req.body.songId) >= 0
+	      & user.playlists.indexOf(playlist._id) >= 0) {
+		if(playlist.songs.indexOf(req.body.songId) < 0) {
+		    //add this song to the playlist kid
+		    Playlist.findOneAndUpdate({
+			userId: req.user._id,
+			name: req.body.playlistName
+		    }, 
+		    { $push: { songs: req.body.songId } },
+		    { safe: true, upsert: true },
+		    (pushErr, result) => {
+			if(pushErr) {
+			    res.send({ error: pushErr });
+			    return;
+			}
+			res.send("song " 
+				 + req.body.songId 
+				 + " successfully added to playlist " 
+				 + req.body.playlistName);
+		    });
+		} else {
+		    res.send({ error: "Song already in playlist" });
+		    return;
+		}
+	    } else {
+		res.send({error: "song or playlist not found in user"});
+		return;
+	    }
+	});
+    });
+});
 
 //allow the user to create a playlist
 app.post("/createPlaylist", requireLogin, (req, res) => {
