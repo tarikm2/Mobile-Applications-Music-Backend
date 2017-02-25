@@ -3,19 +3,20 @@
   "version": "1.0.0",
   "main": "app.js",
   "engines": {
-      "node": "5.9.1"
+    "node": "5.9.1"
   },
   "scripts": {
     "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
-      "type": "git",
-      "url": "https://github.com/tarikm2/Mobile-Applications-Music-Backend"
+    "type": "git",
+    "url": "https://github.com/tarikm2/Mobile-Applications-Music-Backend"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "async": "^2.1.5",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.16.0",
     "child_process": "^1.0.2",

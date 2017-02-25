@@ -8,16 +8,16 @@ var bodyParser = require("body-parser");
 var sessions = require("client-sessions");
 //encription module for hashing and salting passwords
 var bcrypt = require("bcryptjs");
+var async = require("async");
+
 //our app
 var app = express();
-
 
 //dependencies for streaming youtube audio
 var ytdl = require('ytdl-core');
 var ffmpeg = require('fluent-ffmpeg');
 
 app.set('port', (process.env.PORT || 5000));
-
 
 //private local variables
 const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
@@ -51,9 +51,9 @@ app.use((req, res, next) => {
 		//object with the session info.
 		//set the user of this request to the sessions user
 		req.user = user;
-		
+
 		//security: remove uneccesary sensitive information
-		 req.user.password = undefined;
+		req.user.password = undefined;
 		console.log(req.user);
 		//security: reset the session user to the user clear of sesitive info
 		req.session.user = user;
@@ -90,30 +90,57 @@ function requireLogout(req, res, next) {
   the database currently links a user to a list of songs, which contains sorcing information
   for retriving the song.
 */
+
 var Schema = mongoose.Schema;      //for defining schemas
 var ObjectId = Schema.ObjectId;
 
+var songSchema = Schema({
+    title: String,
+    imgurl: String,
+    dateCreated: { type: Date, default: Date.now() },
+    src: String, 
+    id: {
+	type: String,
+	enum: ['YouTube']
+    }
+
+});
+var Song = mongoose.model("Song", songSchema); 
+
+var playlistSchema = Schema({
+    name: String,
+    userId: {
+	type: mongoose.Schema.Types.ObjectId,
+	ref: "User"
+    },
+    songs: [{
+	type: mongoose.Schema.Types.ObjectId,
+	unique: true,
+	dropDups: true,
+	ref: 'Song'
+    }]
+});
+//create a composite primary key out of playlist userId and name
+playlistSchema.index({ name: 1, userId: 1 }, { unique: true });
+var Playlist = mongoose.model("Playlist", playlistSchema);
+
 var userSchema = Schema({          //set up the orms for the database
-    id: ObjectId,
     firstName: String,
     lastName: String,
     userName: String,
     email: { type: String, unique: true },
     password: String,
-    songs: [{ type: Schema.Types.ObjectId, ref: 'Song' }],
+    playlists: [{
+	type: mongoose.Schema.Types.ObjectId,
+	ref: 'Playlist' 
+    }],
+    songs: [{
+	type: mongoose.Schema.Types.ObjectId,
+	ref: 'Song'
+    }],
 });
-
-
-var songSchema = Schema({
-    _owner : { type: Number, ref: "User"},
-    title: String,
-    sourceId: String,
-    dateCreated: { type: Date, default: Date.now },
-    souceObject: {},
-});
-
-var Song = mongoose.model("Song", songSchema); 
 var User = mongoose.model("User", userSchema);
+
 
 mongoose.connect("mongodb://"        //connect to our local database
 		 + CREDENTIALS.DB.USER 
@@ -204,7 +231,7 @@ app.get('/user_info', requireLogin, (req, res) => {
 //TODO: set up an authenticated way to update critical info such as email, paswd
 app.put("/update_user", requireLogin, (req, res) => {
 
-    var invalidEditFields = ["password", "email", "songs", "__v", "_id"];
+    var invalidEditFields = ["password", "email", "songs", "playlists", "__v", "_id"];
 
     User.findOne({email: req.user.email}, (err, user) => {
 	if(err) req.send({error: "error, bad request, no such user logged in"});
@@ -237,28 +264,252 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
+//allow the user to add a song to their playlist
+app.post("/addSongToPlaylist", requireLogin, (req, res) => {
+    
+    Playlist.findOne({
+	userId: req.user._id,
+	name: req.body.playlistName
+    }, (err, playlist) => {
+	//we have found the requested playlist
+	//make sure the song sent matches a song in user library
+	if(err) {
+	    res.send({ error: err });
+	    return;
+	}
+
+	User.findOne({
+	    _id: req.user
+	}, (uErr, user) => {
+	    if(uErr) {
+		res.send({ error: uErr });
+		return;
+	    }
+	    //if this song is in the users library
+	    //and verify that playlist belongs to user
+	    //and verify the song isnt already in the playlist
+	    console.log(user.songs);
+	    if(user.songs.indexOf(req.body.songId) >= 0
+	      & user.playlists.indexOf(playlist._id) >= 0) {
+		if(playlist.songs.indexOf(req.body.songId) < 0) {
+		    //add this song to the playlist kid
+		    Playlist.findOneAndUpdate({
+			userId: req.user._id,
+			name: req.body.playlistName
+		    }, 
+		    { $push: { songs: req.body.songId } },
+		    { safe: true, upsert: true },
+		    (pushErr, result) => {
+			if(pushErr) {
+			    res.send({ error: pushErr });
+			    return;
+			}
+			res.send("song " 
+				 + req.body.songId 
+				 + " successfully added to playlist " 
+				 + req.body.playlistName);
+		    });
+		} else {
+		    res.send({ error: "Song already in playlist" });
+		    return;
+		}
+	    } else {
+		res.send({error: "song or playlist not found in user"});
+		return;
+	    }
+	});
+    });
+});
+
+app.get("/userPlaylists", requireLogin, (req, res) => {
+    User.findOne({
+	_id: req.user._id,
+    })
+	.populate("playlists")
+	.exec((err, user) => {
+	    if(err) {
+		res.send({ error: err });
+		return;
+	    } else {
+		res.json(user.playlists);
+	    }
+	});
+});
+
+app.post("/getPlaylist", requireLogin, (req, res) => {
+
+    Playlist.findOne({
+	_id: req.body.playlistId,
+    })
+	.populate("songs")
+	.exec((err, playlist) => {
+	    console.log(playlist);
+	    if(err){
+		res.send({ error: err });
+		return;
+	    } else {
+		res.json({ 
+		    name: playlist.name,
+		    songs: playlist.songs
+		});
+	    }
+	});
+});
+
+//allow the user to create a playlist
+app.post("/createPlaylist", requireLogin, (req, res) => {
+    
+    playlist = new Playlist(
+	{
+	    name: req.body.playlistName,
+	    userId: req.user._id
+	});
+
+    playlist.save((err) => {
+	if(err) {
+	    if(err.code === 11000) {
+		res.send({error: "User "
+			  + req.user.email
+			  + "  already has playlist named "
+			  + req.body.playlistName});
+		return;
+	    }
+	    res.send({error: err});
+	    return;
+	} else {
+	    User.findOneAndUpdate({ _id: req.user._id },
+				  {$push: { playlists: playlist._id } },
+				  { safe: true, upsert: true },
+				  (e, user) => {
+				      if(e) {
+					  res.send(e);
+					  return;
+				      }
+				  });
+	    console.log("playlist " + req.body.playlistName + " successfull");
+	    res.json(playlist);
+	}
+    });
+});
+
+app.get("/userLibrary", requireLogin, (req, res) => {
+    User.findOne({
+	_id: req.user._id,
+    })
+	.populate('songs')
+	.exec((err, user) => {
+	    if(err) {
+		res.send({ error: err });
+		return;
+	    }
+	    console.log(user);
+	    res.send(user.songs);
+	    return;
+	})
+});
+
+//add a song to the users library
+app.post("/addToLibrary", requireLogin, (req, res) => {
+
+    var songToInsert;
+    var songFound = false;
+
+	
+    Song.findOne({
+	src: req.body.src,
+	id: req.body.srcId
+    }, (err, song) => {
+	if(song) {   //if the song src already exisits in song collection get it
+	    songToInsert = song;
+	} else if(err){
+	    console.log(err);
+	} else {      //if this is a newly sourced song add it to the db
+	    songToInsert = new Song({
+		title: req.body.title,
+		imgurl: req.body.imgurl,
+		src: req.body.src,
+		id: req.body.srcId
+	    });
+	    songToInsert.save((err) => {
+		if(err) {
+		    console.log(err); return;
+		} else {
+		    console.log("new song saved to collection");
+		}    
+	    });
+	    console.log("songToInsert: \n" + songToInsert);
+	}
+	
+	//we have establised a song now handle adding to library
+	//look into efficencies of populate vs findOne() for expanding user songs
+	User.findOne({email: req.user.email}, (err, doc) => {
+	
+	    //use a map here instead of a list for doc.songs to speed search?
+	    async.each(doc.songs,
+		       (songToPopulate, callback) => {
+			   Song.findOne({_id: songToPopulate}, (err, userSong) => {
+			       console.log("the user song Id : " + songToPopulate);
+			       //TODO: replace this validation with a composite pk
+			       //on our schemas 
+			       if(songToInsert.id === userSong.id
+				  & songToInsert.src === userSong.src) {
+				   songFound = true;
+				   console.log("song already in library");
+			       }
+			       callback();
+			   });
+		       },
+		       (e) => {
+			   //if the song isn't already in the users database
+			   if(!songFound){
+			       User.update(
+				   {email: req.user.email}, 
+				   { $push: { songs: songToInsert._id } },
+				   {safe: true, upsert: true},
+				   (err, user) => {
+				       if(err) {
+					   res.send(err);
+					   return;
+				       } else {
+					   res.send(song);
+					   return;
+				       }
+				   });
+			   } else {
+			       res.send({error: "source already exsists in user library"})
+			       return;
+			   }
+		       });
+	});
+    });	     
+});
+
 //most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
     
-    var stream = ytdl(url, {filter: (f) => {
-	return f.container === 'mp4' && !f.encoding;
-    }}).on('error', (err) => {
-	console.log("ERROR: " + err);
-	console.log(url);
-	res.send({error: "Error: unable to stream that youtube source. " + err});
-    });
-
-    res.set({'Content-Type': 'audio/mpeg'});
-    
-    stream.pipe(res);
-    
+    res.set({'Content-Type' : 'audio/mpeg'});
+        
+    var stream = ytdl(url);
+    var proc = new ffmpeg({source: stream})
+	.on("stderr", (stderr) => {
+	    console.log("stderr: " + stderr);
+	})
+	.on('error', (err, stdout, stderr) => {
+	    console.log("error : " + err.message);
+	})
+	.on("end", (stdout, stderr) => {
+	    console.log('stream encoded and send successfull');
+	})
+        .toFormat('mp3')
+	.writeToStream(res, {end:true});
+  
 });
 
 /*
   Make this app live by binding it to a port
 */
-app.listen(app.get('port'), function () {
+app.listen(app.get('port'), () => {
     console.log("Backend listening on port %s", app.get('port'));
 });
 
