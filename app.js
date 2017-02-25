@@ -336,6 +336,26 @@ app.get("/userPlaylists", requireLogin, (req, res) => {
 	});
 });
 
+app.post("/getPlaylist", requireLogin, (req, res) => {
+
+    Playlist.findOne({
+	_id: req.body.playlistId,
+    })
+	.populate("songs")
+	.exec((err, playlist) => {
+	    console.log(playlist);
+	    if(err){
+		res.send({ error: err });
+		return;
+	    } else {
+		res.json({ 
+		    name: playlist.name,
+		    songs: playlist.songs
+		});
+	    }
+	});
+});
+
 //allow the user to create a playlist
 app.post("/createPlaylist", requireLogin, (req, res) => {
     
@@ -428,7 +448,7 @@ app.post("/addToLibrary", requireLogin, (req, res) => {
 	    async.each(doc.songs,
 		       (songToPopulate, callback) => {
 			   Song.findOne({_id: songToPopulate}, (err, userSong) => {
-			       console.log("the user song Id : " + userSong);
+			       console.log("the user song Id : " + songToPopulate);
 			       //TODO: replace this validation with a composite pk
 			       //on our schemas 
 			       if(songToInsert.id === userSong.id
