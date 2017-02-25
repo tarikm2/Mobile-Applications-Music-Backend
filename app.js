@@ -109,32 +109,29 @@ var songSchema = Schema({
 var Song = mongoose.model("Song", songSchema); 
 
 var playlistSchema = Schema({
-    _id: ObjectId,
-    user: {
+    name: String,
+    userId: {
 	type: mongoose.Schema.Types.ObjectId,
 	ref: "User"
     },
     songs: [{
-	songId: {
-	    type: mongoose.Schema.Types.ObjectId,
-	    ref: 'Song'
-	}
+	type: mongoose.Schema.Types.ObjectId,
+	ref: 'Song'
     }]
 });
+//create a composite primary key out of playlist userId and name
+playlistSchema.index({ name: 1, userId: 1 }, { unique: true });
 var Playlist = mongoose.model("Playlist", playlistSchema);
 
 var userSchema = Schema({          //set up the orms for the database
-    id: ObjectId,
     firstName: String,
     lastName: String,
     userName: String,
     email: { type: String, unique: true },
     password: String,
     playlists: [{
-	playListId: {
-	    type: mongoose.Schema.Types.ObjectId,
-	    ref: 'Playlist' 
-	}
+	type: mongoose.Schema.Types.ObjectId,
+	ref: 'Playlist' 
     }],
     songs: [{
 	type: mongoose.Schema.Types.ObjectId,
@@ -266,6 +263,44 @@ app.put("/update_user", requireLogin, (req, res) => {
     });
 });
 
+
+//allow the user to create a playlist
+app.post("/createPlaylist", requireLogin, (req, res) => {
+    
+    playlist = new Playlist(
+	{
+	    name: req.body.playlistName,
+	    userId: req.user._id
+	});
+
+    playlist.save((err) => {
+	if(err) {
+	    if(err.code === 11000) {
+		res.send({error: "User "
+			  + req.user.email
+			  + "  already has playlist named "
+			  + req.body.playlistName});
+		return;
+	    }
+	    res.send({error: err});
+	    return;
+	} else {
+	    User.findOneAndUpdate({ _id: req.user._id },
+				  {$push: { playlists: playlist._id } },
+				  { safe: true, upsert: true },
+				  (e, user) => {
+				      if(e) {
+					  res.send(e);
+					  return;
+				      }
+				  });
+	    console.log("playlist " + req.body.playlistName + " successfull");
+	    res.json(playlist);
+	}
+    });
+});
+
+//add a song to the users library
 app.post("/addToLibrary", requireLogin, (req, res) => {
 
     var songToInsert;
@@ -306,7 +341,8 @@ app.post("/addToLibrary", requireLogin, (req, res) => {
 		       (songToPopulate, callback) => {
 			   Song.findOne({_id: songToPopulate}, (err, userSong) => {
 			       console.log("the user song Id : " + userSong);
-
+			       //TODO: replace this validation with a composite pk
+			       //on our schemas 
 			       if(songToInsert.id === userSong.id
 				  & songToInsert.src === userSong.src) {
 				   songFound = true;
