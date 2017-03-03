@@ -240,7 +240,7 @@ app.put("/update_user", requireLogin, (req, res) => {
 	    if(user[v] 
 	       && req.body[v] != user[v]) {
 
-		if(invalidEditFields.includes(v)) {
+		if(invalidEditFields.indexOf(v) > -1) {
 		    res.send({error: "Cannot edit field " + v + ". protected"});
 		    return;
 		}
