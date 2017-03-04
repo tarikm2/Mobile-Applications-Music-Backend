@@ -484,6 +484,73 @@ app.post("/addToLibrary", requireLogin, (req, res) => {
     });	     
 });
 
+//youtube search
+//TODO: youtube category id reigon specific?
+
+const youTubeSearch =  (title, callback) => {
+
+    var found = youtube.search.list({
+	part: "snippet",
+	q: title,
+	type: "video",
+	videoCategoryId: 10,
+        maxResults: 5,
+        })
+    .on("complete", (data) => {
+	console.log("youtube data : " + data.body.items);
+	callback(data.body.items);
+	
+    })
+    .on("error", (err) => {
+	console.log(err);
+	callback({error: err});
+    });
+
+};
+
+//discogs search
+//TODO: accurately id song titles
+//TODO: retrieve songs from record to source
+//TODO: better source for album art
+//TODO: incorperate record information
+app.post("/adv_search", (req, res) => {
+    var toReturn = [];
+    discogsDb.search(req.body.query,
+    		     (err, data) => {
+	if(data.pagination.items > 1) {
+	    async.each(data.results.slice(0, 1),
+		       (item, callback) => {
+			  console.log(item);
+			  youTubeSearch(item.title, (result) => {
+			      result.forEach((i) => {
+				  toReturn.push({
+				      imgurl: item.thumb,
+				      title: i.snippet.title,
+				      videoId: i.id.videoId
+				  });
+			      });
+			      callback();
+			  });
+		       },
+		       (err) => {
+			   if(err) {
+			       res.send({error: "Error"});
+			   } else {
+			       res.json(toReturn);
+			   }
+			       
+		       });
+	} else if(data.pagination.items == 1) {
+	    youTubeSearch(data.results[0].title, (result) => {
+		toReturn.push(result);
+		res.json(toReturn);
+	    });
+	} else {
+	    res.send({error: "no results found"});
+	}
+    });
+});
+
 //most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
