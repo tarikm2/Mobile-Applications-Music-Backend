@@ -1,6 +1,6 @@
 var path = require('path');
 var express = require("express");
-//orm for our mongoose database....
+//orm for our mongoose database...
 var mongoose = require('mongoose');
 //middlewear to expose req.body on routes
 var bodyParser = require("body-parser");
