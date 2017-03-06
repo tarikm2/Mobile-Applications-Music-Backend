@@ -17,6 +17,15 @@ var app = express();
 var ytdl = require('ytdl-core');
 var ffmpeg = require('fluent-ffmpeg');
 
+const discogs = require("disconnect")
+    .Client(null,
+            {
+                consumerKey: CREDENTIALS.DISCOGS.CONSUMERKEY,
+                consumerSecret: CREDENTIALS.DISCOGS.CONSUMERSECRET
+            });
+
+const discogsDb = discogs.database();
+
 app.set('port', (process.env.PORT || 5000));
 
 //private local variables
