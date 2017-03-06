@@ -17,6 +17,9 @@ var app = express();
 var ytdl = require('ytdl-core');
 var ffmpeg = require('fluent-ffmpeg');
 
+//private local variables
+const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
+
 const discogs = require("disconnect")
     .Client(null,
             {
@@ -28,8 +31,7 @@ const discogsDb = discogs.database();
 
 app.set('port', (process.env.PORT || 5000));
 
-//private local variables
-const CREDENTIALS = require(path.resolve(__dirname, "./credentials.json"));
+
 
 /*
   MIDDLEWARE
