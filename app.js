@@ -42,7 +42,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 app.use(sessions({
     cookieName: "session",
     secret: 'alkdsjhvprjshadalkajslhfkjvcnlakerjgblkajdfhliure',
-    duration: 30 * 60 * 1000,             //this session duration is 30min
+    duration: 10 * 60 * 60 * 1000,             //this session duration is 10 hours
     activeDuration: 5 * 60 * 1000,        //if expiresIn < activeDuration, session extended this much
 }));
 
