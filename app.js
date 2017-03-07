@@ -10,6 +10,8 @@ var sessions = require("client-sessions");
 var bcrypt = require("bcryptjs");
 var async = require("async");
 
+var youtube = require("youtube-api");
+
 //our app
 var app = express();
 
