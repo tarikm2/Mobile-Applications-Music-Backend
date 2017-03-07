@@ -13,7 +13,7 @@ var async = require("async");
 var youtube = require("youtube-api");
 
 //our app
-nvar app = express();
+var app = express();
 
 //dependencies for streaming youtube audio
 var ytdl = require('ytdl-core');
