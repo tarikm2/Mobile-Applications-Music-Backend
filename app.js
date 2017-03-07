@@ -52,7 +52,7 @@ app.use(sessions({
 
 
 //Custom middleware for handling session data
-anpp.use((req, res, next) => {
+app.use((req, res, next) => {
     //if there is a user in the current session from this request
     if(req.session && req.session.user) {
 	//try to get the user from our database
