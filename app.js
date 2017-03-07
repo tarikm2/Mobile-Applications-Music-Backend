@@ -13,7 +13,7 @@ var async = require("async");
 var youtube = require("youtube-api");
 
 //our app
-var app = express();
+nvar app = express();
 
 //dependencies for streaming youtube audio
 var ytdl = require('ytdl-core');
@@ -52,7 +52,7 @@ app.use(sessions({
 
 
 //Custom middleware for handling session data
-app.use((req, res, next) => {
+anpp.use((req, res, next) => {
     //if there is a user in the current session from this request
     if(req.session && req.session.user) {
 	//try to get the user from our database
@@ -526,6 +526,7 @@ const youTubeSearch =  (title, callback) => {
 //TODO: retrieve songs from record to source
 //TODO: better source for album art
 //TODO: incorperate record information
+/*
 app.post("/adv_search", (req, res) => {
     var toReturn = [];
     discogsDb.search(req.body.query,
@@ -563,7 +564,7 @@ app.post("/adv_search", (req, res) => {
 	}
     });
 });
-
+*/
 //most simple audio streaming for node
 app.post("/stream_yt", (req, res) => {
     var url = 'https://www.youtube.com/watch?v=' + req.body.youtubeID;
